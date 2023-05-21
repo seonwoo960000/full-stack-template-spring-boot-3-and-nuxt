@@ -1,0 +1,3 @@
+// This package is where you define infrastructure related classes
+// e.g. Database(MySQL, H2), messaging(Kafka, RabbitMQ) ...
+package com.devvy.backend.infrastructure;
