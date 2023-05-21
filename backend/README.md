@@ -1,9 +1,13 @@
-# Package Structure
+# Frontend Package Structure 
+- TBD
+
+# Backend Package Structure
 - application
-  - ports are defined 
+  - where ports are defined 
   - ports are used by the adapters(located in interfaces package)
 - domain 
-  - domain classes are defined 
+  - domain classes are defined
+  - this is where the main business logic reside 
 - infrastructure 
   - configuration, infrastructure classes are defined 
 - interfaces
