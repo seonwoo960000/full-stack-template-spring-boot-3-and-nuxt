@@ -13,6 +13,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer.FrameOptionsConfig;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -21,6 +22,7 @@ import org.springframework.web.filter.CorsFilter;
 import org.zalando.problem.spring.web.advice.security.SecurityProblemSupport;
 
 import com.devvy.backend.common.enums.AuthorityType;
+import com.devvy.backend.infrastructure.security.CustomOauth2UserService;
 import com.devvy.backend.infrastructure.security.jwt.JWTConfigurer;
 import com.devvy.backend.infrastructure.security.jwt.TokenProvider;
 
@@ -37,13 +39,16 @@ public class SecurityConfiguration {
     private final TokenProvider tokenProvider;
     private final CorsFilter corsFilter;
     private final SecurityProblemSupport securityProblemSupport;
+    private final CustomOauth2UserService customOauth2UserService;
 
     public SecurityConfiguration(TokenProvider tokenProvider,
                                  CorsFilter corsFilter,
-                                 SecurityProblemSupport securityProblemSupport) {
+                                 SecurityProblemSupport securityProblemSupport,
+                                 CustomOauth2UserService customOauth2UserService) {
         this.tokenProvider = tokenProvider;
         this.corsFilter = corsFilter;
         this.securityProblemSupport = securityProblemSupport;
+        this.customOauth2UserService = customOauth2UserService;
     }
 
     @Bean
@@ -62,22 +67,31 @@ public class SecurityConfiguration {
             .formLogin(AbstractHttpConfigurer::disable)
             .csrf(AbstractHttpConfigurer::disable)
             .headers(headersCustomizer -> headersCustomizer.frameOptions(FrameOptionsConfig::disable))
-            .authorizeHttpRequests(requestsCustomizer ->
-                requestsCustomizer
+            .sessionManagement(custz -> custz.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(authz ->
+                authz
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers("/swagger-ui/**").permitAll()
-                    .requestMatchers(("/v3/api-docs/**")).permitAll()
+                    .requestMatchers("/v3/api-docs/**").permitAll()
                     .requestMatchers("/h2-console/**").permitAll()
                     .requestMatchers("/management/health").permitAll()
                     .requestMatchers("/management/health/**").permitAll()
                     .requestMatchers("/management/info").permitAll()
                     .requestMatchers("/management/**").hasAuthority(AuthorityType.ADMIN.getRole())
                     .requestMatchers("/api/v1/public/**").permitAll()
-                    .requestMatchers("/api/v1/**").hasAuthority(AuthorityType.USER.getRole()))
-        .apply(securityConfigurerAdapter());
+                    .requestMatchers("/api/v1/**").hasAuthority(AuthorityType.USER.getRole())
+                    .anyRequest().authenticated()
+            )
+            .oauth2Login(authz ->
+                authz.defaultSuccessUrl("/api/v1/public/oauth2/success")
+                    .failureUrl("/api/v1/public/oauth2/fail")
+                    .userInfoEndpoint(customizer -> customizer.userService(customOauth2UserService))
+            )
+            .apply(securityConfigurerAdapter());
 
         return http.build();
     }
 
     private JWTConfigurer securityConfigurerAdapter() { return new JWTConfigurer(tokenProvider);  }
+
 }
